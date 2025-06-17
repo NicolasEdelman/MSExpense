@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import { ZodError } from "zod";
 import { CreateExpenseCategorySchema } from "../schemas/expensesSchema";
-import * as expenseService from "../services/service";
+import * as expenseService from "../services/categoryService";
 import { ValidationError } from "../lib/errors/validation-error";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware";
 

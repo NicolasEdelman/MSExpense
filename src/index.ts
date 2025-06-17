@@ -1,5 +1,5 @@
 import express from 'express';
-import { expenseRouter } from "./routes/routes";
+import { expenseRouter } from "./routes/categories";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
