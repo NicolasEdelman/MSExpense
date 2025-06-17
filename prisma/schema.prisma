@@ -1,0 +1,46 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model ExpenseCategory {
+  id          String    @default(uuid())
+  name        String
+  description String
+  limit       Float?    @db.DoublePrecision
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  companyId String
+
+  expenses Expense[]
+
+  @@id([id, companyId])
+  @@unique([name, companyId])
+}
+
+model Expense {
+  id           String    @default(uuid())
+  amount       Float     @db.DoublePrecision
+  dateProduced DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Relationships
+  categoryId String
+  category   ExpenseCategory @relation(fields: [categoryId, companyId], references: [id, companyId])
+
+  userId String
+
+  companyId String
+
+  @@id([id, companyId])
+}
