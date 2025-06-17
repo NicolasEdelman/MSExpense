@@ -20,4 +20,10 @@ router.delete(
   expenseController.softDeleteCategory
 );
 
+router.get(
+  "/expense-categories",
+  authMiddleware(),
+  expenseController.getCategories
+);  
+
 export const expenseRouter = router;

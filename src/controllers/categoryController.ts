@@ -142,12 +142,45 @@ export const softDeleteCategory = async (
 
     const category = await expenseService.softDeleteCategory(
       companyId,
-      categoryId,
+      categoryId
     );
 
     res.status(200).json({
       success: true,
       data: category,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+export const getCategories = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const companyId = (req.query.companyId as string) || req.user?.companyId;
+    if (!companyId) {
+      res.status(400).json({ error: "Company ID is required" });
+      return;
+    }
+
+    const categories = await expenseService.getCategoriesByCompany(companyId);
+
+    res.status(200).json({
+      success: true,
+      data: categories,
     });
   } catch (error: unknown) {
     if (error instanceof Error) {

@@ -134,3 +134,23 @@ export const softDeleteCategory = async (
     throw error;
   }
 };
+
+export const getCategoriesByCompany = async (companyId: string) => {
+  try {
+    const result = await prisma.expenseCategory.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+    return result;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw error;
+  }
+};
