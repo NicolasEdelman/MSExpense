@@ -1,5 +1,11 @@
-import { CreateExpenseCategorySchema } from "../schemas/expensesSchema";
-import type { CreateExpenseCategory } from "../schemas/expensesSchema";
+import {
+  CreateExpenseCategorySchema,
+  UpdateExpenseCategorySchema,
+} from "../schemas/categorySchema";
+import type {
+  CreateExpenseCategory,
+  UpdateExpenseCategory,
+} from "../schemas/categorySchema";
 import { prisma } from "../lib/prisma";
 import { ValidationError } from "../lib/errors/validation-error";
 import { ZodError } from "zod";
@@ -11,8 +17,9 @@ const companiesIds = [
   "123e4567-e89b-12d3-a456-426614174000",
 ];
 
-// Función para validar si existe el companyId
-export const validateCompanyId = async (companyId: string): Promise<boolean> => {
+export const validateCompanyId = async (
+  companyId: string
+): Promise<boolean> => {
   return companiesIds.includes(companyId);
 };
 
@@ -21,7 +28,6 @@ export const createCategory = async (
   category: CreateExpenseCategory
 ) => {
   try {
-    // Validar que el companyId existe
     const companyExists = await validateCompanyId(companyId);
     if (!companyExists) {
       throw new Error(`Company with ID '${companyId}' not found`);
@@ -37,6 +43,51 @@ export const createCategory = async (
     return result;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        throw new Error(
+          `Category with name '${category.name}' already exists for this company`
+        );
+      }
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (error instanceof ZodError) {
+      throw new ValidationError(error, "Invalid category data");
+    }
+
+    throw error;
+  }
+};
+
+export const updateCategory = async (
+  companyId: string,
+  categoryId: string,
+  category: UpdateExpenseCategory
+) => {
+  try {
+    const validatedData = UpdateExpenseCategorySchema.parse(category);
+
+    if (Object.keys(validatedData).length === 0) {
+      throw new Error("No valid fields provided for update");
+    }
+
+    const result = await prisma.expenseCategory.update({
+      where: {
+        id_companyId: {
+          id: categoryId,
+          companyId,
+        },
+      },
+      data: validatedData,
+    });
+    return result;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        throw new Error(
+          `Category with ID '${categoryId}' not found for company with ID '${companyId}'`
+        );
+      }
       if (error.code === "P2002") {
         throw new Error(
           `Category with name '${category.name}' already exists for this company`

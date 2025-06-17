@@ -10,4 +10,9 @@ router.post(
     expenseController.createCategory
   );
 
+router.put("/expense-categories/:categoryId",
+    authMiddleware(),
+    expenseController.updateCategory
+)
+
 export const expenseRouter = router;
