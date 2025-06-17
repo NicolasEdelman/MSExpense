@@ -14,7 +14,6 @@ export const createCategory = async (
 ): Promise<void> => {
   try {
     const companyId = req.user?.companyId;
-    console.log("companyId", companyId);
     if (!companyId) {
       res.status(400).json({ error: "Company ID is required" });
       return;
@@ -109,6 +108,48 @@ export const updateCategory = async (
       return;
     }
 
+    if (error instanceof Error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+export const softDeleteCategory = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      res.status(400).json({ error: "Company ID is required" });
+      return;
+    }
+
+    const { categoryId } = req.params;
+    if (!categoryId) {
+      res.status(400).json({ error: "Category ID is required" });
+      return;
+    }
+
+    const category = await expenseService.softDeleteCategory(
+      companyId,
+      categoryId,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: category,
+    });
+  } catch (error: unknown) {
     if (error instanceof Error) {
       res.status(400).json({
         success: false,

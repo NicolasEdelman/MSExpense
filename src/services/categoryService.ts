@@ -103,3 +103,34 @@ export const updateCategory = async (
     throw error;
   }
 };
+
+export const softDeleteCategory = async (
+  companyId: string,
+  categoryId: string
+) => {
+  try {
+    const result = await prisma.expenseCategory.update({
+      where: {
+        id_companyId: {
+          id: categoryId,
+          companyId,
+        },
+      },
+      data: {
+        deletedAt: new Date(),
+      } as Prisma.ExpenseCategoryUpdateInput,
+    });
+    return result;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        throw new Error(
+          `Category with ID '${categoryId}' not found for company with ID '${companyId}'`
+        );
+      }
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    throw error;
+  }
+};

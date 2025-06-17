@@ -14,5 +14,10 @@ router.put("/expense-categories/:categoryId",
     authMiddleware(),
     expenseController.updateCategory
 )
+router.delete(
+  "/expense-categories/:categoryId",
+  authMiddleware(),
+  expenseController.softDeleteCategory
+);
 
 export const expenseRouter = router;
