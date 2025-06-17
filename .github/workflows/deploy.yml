@@ -1,0 +1,66 @@
+name: Deploy to AWS Elastic Beanstalk
+
+on:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create deployment package
+      run: |
+        # Create a temporary directory for deployment files
+        mkdir -p deploy-package
+        
+        # Copy necessary files for deployment
+        cp package.json deploy-package/
+        cp package-lock.json deploy-package/
+        cp -r src deploy-package/
+        cp tsconfig.json deploy-package/
+        
+        # Copy Dockerfile if using Docker deployment
+        cp Dockerfile deploy-package/
+        cp .dockerignore deploy-package/
+        
+        
+        # Create the zip file
+        cd deploy-package
+        zip -r ../beanstalk.zip .
+        cd ..
+        
+        # Clean up
+        rm -rf deploy-package
+        
+    - name: Deploy to Elastic Beanstalk
+      uses: einaregilsson/beanstalk-deploy@v22
+      with:
+        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws_session_token: ${{ secrets.AWS_SESSION_TOKEN }}
+        application_name: ${{ secrets.EB_APPLICATION_NAME }}
+        environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
+        region: ${{ secrets.AWS_REGION }}
+        version_label: ${{ github.sha }}
+        deployment_package: beanstalk.zip
+        wait_for_environment_recovery: 300
+        
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: beanstalk-deployment-1
+        path: beanstalk.zip
+        retention-days: 30 
