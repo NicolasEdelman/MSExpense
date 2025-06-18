@@ -4,6 +4,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     userId: string;
     companyId: string;
+    role?: string;
   };
 }
 
@@ -15,6 +16,7 @@ export const authMiddleware = () => {
   ): void => {
     const authHeader = req.headers.authorization;
     const companyId = req.headers['x-company-id'] as string;
+    const userRole = req.headers['x-user-role'] as string;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       res.status(401).json({ error: "Unauthorized" });
@@ -38,6 +40,7 @@ export const authMiddleware = () => {
       req.user = {
         userId: decoded.userId,
         companyId: companyId,
+        role: userRole,
       };
 
       next();

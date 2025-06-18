@@ -170,3 +170,51 @@ export const updateExpense = async (
     });
   }
 };
+
+export const getExpenses = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const companyId = (req.query.companyId as string) || req.user?.companyId;
+    const userRole = req.user?.role;
+    const page = Number.parseInt(req.query.page as string) || 1;
+    const pageSize = Number.parseInt(req.query.pageSize as string) || 10;
+
+    if (!companyId) {
+      res.status(400).json({ error: "Company ID is required" });
+      return;
+    }
+
+    if (!userRole) {
+      res.status(400).json({ error: "User role is required" });
+      return;
+    }
+
+    const result = await expenseService.getExpenses(
+      companyId,
+      userRole,
+      page,
+      pageSize
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.expenses,
+      pagination: result.pagination,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+};

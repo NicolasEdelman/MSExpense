@@ -24,7 +24,6 @@ export const createExpense = async (expense: CreateExpense) => {
   try {
     const validatedData = CreateExpenseSchema.parse(expense);
 
-    // check if category exists
     const category = await prisma.expenseCategory.findUnique({
       where: {
         id_companyId: {
@@ -38,7 +37,6 @@ export const createExpense = async (expense: CreateExpense) => {
       throw new Error("Category not found");
     }
 
-    // Check if category has a limit and if expense amount exceeds it
     if (category.limit !== null && validatedData.amount > category.limit) {
       throw new Error(
         `Expense amount exceeds category limit of ${category.limit}`
@@ -49,11 +47,9 @@ export const createExpense = async (expense: CreateExpense) => {
       data: validatedData,
     });
 
-    // Delete the cache for this company's top expense categories
     const cacheKey = TOP_EXPENSE_CATEGORIES_CACHE_KEY(validatedData.companyId);
     await cache.del(cacheKey);
 
-    // Invalidate expenses by category and date range cache
     const pattern = `expenses_by_category_date:${validatedData.companyId}:${validatedData.categoryId}:*`;
     const keys = await cache.keys(pattern);
     await Promise.all(keys.map((key: string) => cache.del(key)));
@@ -142,7 +138,6 @@ export const updateExpense = async (expenseId: string, data: UpdateExpense) => {
       data: validatedData,
     });
 
-    // Invalidate cache for both old and new category if category was changed
     const patterns = [
       `expenses_by_category_date:${expense.companyId}:${expense.categoryId}:*`,
     ];
@@ -174,6 +169,73 @@ export const updateExpense = async (expenseId: string, data: UpdateExpense) => {
     }
     if (error instanceof ZodError) {
       throw new ValidationError(error, "Invalid expense data");
+    }
+    throw error;
+  }
+};
+
+export const getExpenses = async (
+  companyId: string | undefined,
+  userRole: string,
+  page = 1,
+  pageSize = 10
+) => {
+  try {
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+    let pagination;
+    if (userRole === "SUPERADMIN") {
+      const [expenses, total] = await Promise.all([
+        prisma.expense.findMany({
+          where: {
+            deletedAt: null,
+          },
+          include: {
+            category: true,
+          },
+          orderBy: [
+            {
+              dateProduced: "desc",
+            },
+          ],
+          skip,
+          take,
+        }),
+        prisma.expense.count({
+          where: {
+            deletedAt: null,
+          },
+        }),
+      ]);
+      pagination = { page, pageSize, total };
+
+      return { expenses, pagination };
+    }
+    const expenses = await prisma.expense.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+      },
+      include: {
+        category: true,
+      },
+      orderBy: {
+        dateProduced: "desc",
+      },
+      skip,
+      take,
+    });
+
+    return {
+      expenses,
+      pagination: {
+        page,
+        pageSize,
+      },
+    };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw new Error(`Database error: ${error.message}`);
     }
     throw error;
   }
