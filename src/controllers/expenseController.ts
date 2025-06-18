@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import { ZodError } from "zod";
 import { CreateExpenseSchema } from "../schemas/expenseSchema";
-import * as expenseService from "../services/expenseService"
+import * as expenseService from "../services/expenseService";
 import { ValidationError } from "../lib/errors/validation-error";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware";
 
@@ -53,6 +53,49 @@ export const createExpense = async (
       return;
     }
 
+    if (error instanceof Error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+export const softDeleteExpense = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { expenseId } = req.params;
+    const companyId = req.user?.companyId;
+
+    if (!expenseId) {
+      res.status(400).json({ error: "Expense ID is required" });
+      return;
+    }
+
+    if (!companyId) {
+      res.status(400).json({ error: "Company ID is required" });
+      return;
+    }
+
+    const expense = await expenseService.softDeleteExpense(
+      expenseId,
+      companyId
+    );
+
+    res.status(200).json({
+      success: true,
+      data: expense,
+    });
+  } catch (error: unknown) {
     if (error instanceof Error) {
       res.status(400).json({
         success: false,

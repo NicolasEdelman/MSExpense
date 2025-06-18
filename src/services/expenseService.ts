@@ -4,6 +4,7 @@ import cache from "../lib/cache";
 import { ZodError } from "zod";
 import { ValidationError } from "../lib/errors/validation-error";
 import { CreateExpense } from "../schemas/expenseSchema";
+import { Prisma } from "@prisma/client";
 
 const TOP_EXPENSE_CATEGORIES_CACHE_KEY = (companyId: string) =>
   `top_expense_categories:${companyId}`;
@@ -14,7 +15,6 @@ const TOP_EXPENSE_CATEGORIES_CACHE_KEY = (companyId: string) =>
 //   endDate: Date
 // ) =>
 //   `expenses_by_category_date:${companyId}:${categoryId}:${startDate.toISOString()}:${endDate.toISOString()}`;
-
 
 export const createExpense = async (expense: CreateExpense) => {
   try {
@@ -58,6 +58,47 @@ export const createExpense = async (expense: CreateExpense) => {
   } catch (error) {
     if (error instanceof ZodError) {
       throw new ValidationError(error, "Invalid expense data");
+    }
+    throw error;
+  }
+};
+
+export const softDeleteExpense = async (
+  expenseId: string,
+  companyId: string
+) => {
+  try {
+    const expense = await prisma.expense.findFirst({
+      where: {
+        id: expenseId,
+        companyId: companyId,
+      },
+    });
+    if (expense?.deletedAt) {
+      throw new Error("Expense already deleted");
+    }
+
+    const deletedExpense = await prisma.expense.update({
+      where: { id_companyId: { id: expenseId, companyId } },
+      data: {
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      } as Prisma.ExpenseUpdateInput,
+    });
+
+    if (expense?.categoryId) {
+      const pattern = `expenses_by_category_date:${companyId}:${expense.categoryId}:*`;
+      const keys = await cache.keys(pattern);
+      await Promise.all(keys.map((key: string) => cache.del(key)));
+    }
+
+    return deletedExpense;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        throw new Error("Expense not found");
+      }
+      throw new Error(`Database error: ${error.message}`);
     }
     throw error;
   }
