@@ -1,5 +1,6 @@
 import express from 'express';
-import { expenseRouter } from "./routes/categories";
+import { categoryRouter } from "./routes/categories";
+import { expenseRouter } from "./routes/expenses";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +16,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api', expenseRouter);
+app.use('/api', categoryRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as expenseController from "../controllers/categoryController";
+import * as categoryController from "../controllers/categoryController";
 import { authMiddleware } from "../middlewares/authMiddleware";
 
 const router = Router();
@@ -7,23 +7,23 @@ const router = Router();
 router.post(
     "/expense-categories",
     authMiddleware(),
-    expenseController.createCategory
+    categoryController.createCategory
   );
 
 router.put("/expense-categories/:categoryId",
     authMiddleware(),
-    expenseController.updateCategory
+    categoryController.updateCategory
 )
 router.delete(
   "/expense-categories/:categoryId",
   authMiddleware(),
-  expenseController.softDeleteCategory
+  categoryController.softDeleteCategory
 );
 
 router.get(
   "/expense-categories",
   authMiddleware(),
-  expenseController.getCategories
+  categoryController.getCategories
 );  
 
-export const expenseRouter = router;
+export const categoryRouter = router;
