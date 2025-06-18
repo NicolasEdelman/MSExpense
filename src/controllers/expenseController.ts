@@ -1,6 +1,9 @@
 import type { Response } from "express";
 import { ZodError } from "zod";
-import { CreateExpenseSchema } from "../schemas/expenseSchema";
+import {
+  CreateExpenseSchema,
+  UpdateExpenseSchema,
+} from "../schemas/expenseSchema";
 import * as expenseService from "../services/expenseService";
 import { ValidationError } from "../lib/errors/validation-error";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware";
@@ -96,6 +99,63 @@ export const softDeleteExpense = async (
       data: expense,
     });
   } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+export const updateExpense = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { expenseId } = req.params;
+    const companyId = (req.query.companyId as string) || req.user?.companyId;
+
+    if (!expenseId) {
+      res.status(400).json({ error: "Expense ID is required" });
+      return;
+    }
+
+    if (!companyId) {
+      res.status(400).json({ error: "Company ID is required" });
+      return;
+    }
+
+    const expenseData = await UpdateExpenseSchema.parseAsync(req.body);
+    const expense = await expenseService.updateExpense(expenseId, expenseData);
+
+    res.status(200).json({
+      success: true,
+      data: expense,
+    });
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      const validationError = new ValidationError(
+        error,
+        "Invalid expense data"
+      );
+      res.status(400).json({
+        success: false,
+        error: {
+          title: validationError.title,
+          detail: validationError.detail,
+          errors: validationError.errors,
+        },
+      });
+      return;
+    }
+
     if (error instanceof Error) {
       res.status(400).json({
         success: false,

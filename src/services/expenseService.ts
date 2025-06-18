@@ -1,4 +1,8 @@
-import { CreateExpenseSchema } from "../schemas/expenseSchema";
+import {
+  CreateExpenseSchema,
+  UpdateExpenseSchema,
+  UpdateExpense,
+} from "../schemas/expenseSchema";
 import { prisma } from "../lib/prisma";
 import cache from "../lib/cache";
 import { ZodError } from "zod";
@@ -99,6 +103,77 @@ export const softDeleteExpense = async (
         throw new Error("Expense not found");
       }
       throw new Error(`Database error: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+export const updateExpense = async (expenseId: string, data: UpdateExpense) => {
+  try {
+    const validatedData = UpdateExpenseSchema.parse(data);
+
+    if (Object.keys(validatedData).length === 0) {
+      throw new Error("No valid fields provided for update");
+    }
+
+    const expense = await prisma.expense.findFirst({
+      where: { id: expenseId },
+    });
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    let category = null;
+    if (validatedData.categoryId) {
+      category = await prisma.expenseCategory.findFirst({
+        where: {
+          id: validatedData.categoryId,
+        },
+      });
+
+      if (!category) {
+        throw new Error("Category not found");
+      }
+    }
+
+    const updatedExpense = await prisma.expense.update({
+      where: { id_companyId: { id: expenseId, companyId: expense.companyId } },
+      data: validatedData,
+    });
+
+    // Invalidate cache for both old and new category if category was changed
+    const patterns = [
+      `expenses_by_category_date:${expense.companyId}:${expense.categoryId}:*`,
+    ];
+
+    if (
+      validatedData.categoryId &&
+      validatedData.categoryId !== expense.categoryId
+    ) {
+      patterns.push(
+        `expenses_by_category_date:${expense.companyId}:${validatedData.categoryId}:*`
+      );
+    }
+
+    const keys = await Promise.all(
+      patterns.map((pattern) => cache.keys(pattern))
+    );
+    await Promise.all(keys.flat().map((key: string) => cache.del(key)));
+
+    return updatedExpense;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        throw new Error("Expense not found");
+      }
+      if (error.code === "P2003") {
+        throw new Error("Invalid category for this company");
+      }
+      throw new Error(`Database error: ${error.message}`);
+    }
+    if (error instanceof ZodError) {
+      throw new ValidationError(error, "Invalid expense data");
     }
     throw error;
   }
