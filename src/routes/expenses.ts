@@ -10,5 +10,4 @@ router.put("/expenses/:expenseId", authMiddleware(), expenseController.updateExp
 router.get("/expenses", authMiddleware(), expenseController.getExpenses);
 router.get("/expenses/top-categories", authMiddleware(), expenseController.getTopExpenseCategories);
 router.get(  "/expenses/:categoryId", authMiddleware(), expenseController.getExpensesByCategoryAndDateRange);
-
 export const expenseRouter = router;

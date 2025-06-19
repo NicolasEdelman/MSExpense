@@ -178,18 +178,42 @@ export const getExpenses = async (
   companyId: string | undefined,
   userRole: string,
   page = 1,
-  pageSize = 10
+  pageSize = 10,
+  filters?: {
+    categoryId?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }
 ) => {
   try {
     const skip = (page - 1) * pageSize;
     const take = pageSize;
+
+    // Construir el objeto where base
+    const baseWhere: any = {
+      deletedAt: null,
+    };
+
+    // Agregar filtros si se proporcionan
+    if (filters?.categoryId) {
+      baseWhere.categoryId = filters.categoryId;
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      baseWhere.dateProduced = {};
+      if (filters?.startDate) {
+        baseWhere.dateProduced.gte = filters.startDate;
+      }
+      if (filters?.endDate) {
+        baseWhere.dateProduced.lte = filters.endDate;
+      }
+    }
+
     let pagination;
     if (userRole === "SUPERADMIN") {
       const [expenses, total] = await Promise.all([
         prisma.expense.findMany({
-          where: {
-            deletedAt: null,
-          },
+          where: baseWhere,
           include: {
             category: true,
           },
@@ -202,35 +226,43 @@ export const getExpenses = async (
           take,
         }),
         prisma.expense.count({
-          where: {
-            deletedAt: null,
-          },
+          where: baseWhere,
         }),
       ]);
       pagination = { page, pageSize, total };
 
       return { expenses, pagination };
     }
-    const expenses = await prisma.expense.findMany({
-      where: {
-        companyId,
-        deletedAt: null,
-      },
-      include: {
-        category: true,
-      },
-      orderBy: {
-        dateProduced: "desc",
-      },
-      skip,
-      take,
-    });
+
+    // Para usuarios normales, agregar el filtro de companyId
+    const userWhere = {
+      ...baseWhere,
+      companyId,
+    };
+
+    const [expenses, total] = await Promise.all([
+      prisma.expense.findMany({
+        where: userWhere,
+        include: {
+          category: true,
+        },
+        orderBy: {
+          dateProduced: "desc",
+        },
+        skip,
+        take,
+      }),
+      prisma.expense.count({
+        where: userWhere,
+      }),
+    ]);
 
     return {
       expenses,
       pagination: {
         page,
         pageSize,
+        total,
       },
     };
   } catch (error) {

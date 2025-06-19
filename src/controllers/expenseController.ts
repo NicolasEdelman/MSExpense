@@ -180,6 +180,11 @@ export const getExpenses = async (
     const userRole = req.user?.role;
     const page = Number.parseInt(req.query.page as string) || 1;
     const pageSize = Number.parseInt(req.query.pageSize as string) || 10;
+    
+    // Nuevos parámetros de búsqueda opcionales
+    const categoryId = req.query.categoryId as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
 
     if (!companyId) {
       res.status(400).json({ error: "Company ID is required" });
@@ -191,11 +196,42 @@ export const getExpenses = async (
       return;
     }
 
+    // Validar fechas si se proporcionan
+    let parsedStartDate: Date | undefined;
+    let parsedEndDate: Date | undefined;
+
+    if (startDate) {
+      parsedStartDate = new Date(startDate);
+      if (isNaN(parsedStartDate.getTime())) {
+        res.status(400).json({ error: "Invalid startDate format" });
+        return;
+      }
+    }
+
+    if (endDate) {
+      parsedEndDate = new Date(endDate);
+      if (isNaN(parsedEndDate.getTime())) {
+        res.status(400).json({ error: "Invalid endDate format" });
+        return;
+      }
+    }
+
+    // Validar que startDate no sea mayor que endDate
+    if (parsedStartDate && parsedEndDate && parsedStartDate > parsedEndDate) {
+      res.status(400).json({ error: "startDate cannot be greater than endDate" });
+      return;
+    }
+
     const result = await expenseService.getExpenses(
       companyId,
       userRole,
       page,
-      pageSize
+      pageSize,
+      {
+        categoryId,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate
+      }
     );
 
     res.status(200).json({
