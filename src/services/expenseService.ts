@@ -240,3 +240,52 @@ export const getExpenses = async (
     throw error;
   }
 };
+
+export const getTopExpenseCategories = async (companyId: string) => {
+  try {
+    const cacheKey = TOP_EXPENSE_CATEGORIES_CACHE_KEY(companyId);
+
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+
+    const categories = await prisma.expenseCategory.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        expenses: {
+          where: {
+            deletedAt: null,
+          },
+          select: {
+            amount: true,
+          },
+        },
+      },
+    });
+
+    const categoriesWithTotals = categories
+      .map((category) => ({
+        name: category.name,
+        totalExpenses: category.expenses.reduce(
+          (sum, expense) => sum + expense.amount,
+          0
+        ),
+      }))
+      .sort((a, b) => b.totalExpenses - a.totalExpenses)
+      .slice(0, 3);
+
+    await cache.set(cacheKey, JSON.stringify(categoriesWithTotals), 3600);
+    return categoriesWithTotals;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw error;
+  }
+};
