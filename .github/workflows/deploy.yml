@@ -12,14 +12,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: latest
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'npm'
+        cache: 'pnpm'
         
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Create deployment package
       run: |
@@ -28,9 +33,11 @@ jobs:
         
         # Copy necessary files for deployment
         cp package.json deploy-package/
-        cp package-lock.json deploy-package/
+        cp pnpm-lock.yaml deploy-package/
         cp -r src deploy-package/
         cp tsconfig.json deploy-package/
+
+        cp -r prisma deploy-package/
         
         # Copy Dockerfile if using Docker deployment
         cp Dockerfile deploy-package/
@@ -63,4 +70,4 @@ jobs:
       with:
         name: beanstalk-deployment-1
         path: beanstalk.zip
-        retention-days: 30 
+        retention-days: 30

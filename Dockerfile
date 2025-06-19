@@ -1,16 +1,18 @@
 # Build stage
 FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # Production stage
 FROM node:24-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 COPY --from=builder /app/dist ./dist
 EXPOSE 3000
-CMD ["node", "dist/index.js"] 
+CMD ["node", "dist/index.js"]
