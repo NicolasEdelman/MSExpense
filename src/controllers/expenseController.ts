@@ -244,3 +244,46 @@ export const getTopExpenseCategories = async (
     }
   }
 };
+
+export const getExpensesByCategoryAndDateRange = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const companyId = req.user?.companyId;
+    const { categoryId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!companyId) {
+      res.status(400).json({ error: "Company ID is required" });
+      return;
+    }
+    if (!categoryId || typeof categoryId !== "string") {
+      res.status(400).json({ error: "Category ID is required" });
+      return;
+    }
+    if (!startDate || !endDate) {
+      res.status(400).json({ error: "Start and end date are required" });
+      return;
+    }
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+    const expenses = await expenseService.getExpensesByCategoryAndDateRange(
+      companyId,
+      categoryId,
+      start,
+      end
+    );
+
+    res.status(200).json({
+      success: true,
+      data: expenses,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(400).json({ success: false, error: error.message });
+    } else {
+      res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+  }
+};

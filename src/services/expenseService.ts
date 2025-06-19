@@ -12,13 +12,13 @@ import { Prisma } from "@prisma/client";
 
 const TOP_EXPENSE_CATEGORIES_CACHE_KEY = (companyId: string) =>
   `top_expense_categories:${companyId}`;
-// const EXPENSES_BY_CATEGORY_DATE_CACHE_KEY = (
-//   companyId: string,
-//   categoryId: string,
-//   startDate: Date,
-//   endDate: Date
-// ) =>
-//   `expenses_by_category_date:${companyId}:${categoryId}:${startDate.toISOString()}:${endDate.toISOString()}`;
+const EXPENSES_BY_CATEGORY_DATE_CACHE_KEY = (
+  companyId: string,
+  categoryId: string,
+  startDate: Date,
+  endDate: Date
+) =>
+  `expenses_by_category_date:${companyId}:${categoryId}:${startDate.toISOString()}:${endDate.toISOString()}`;
 
 export const createExpense = async (expense: CreateExpense) => {
   try {
@@ -282,6 +282,65 @@ export const getTopExpenseCategories = async (companyId: string) => {
 
     await cache.set(cacheKey, JSON.stringify(categoriesWithTotals), 3600);
     return categoriesWithTotals;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+export const getExpensesByCategoryAndDateRange = async (
+  companyId: string,
+  categoryId: string,
+  startDate: Date,
+  endDate: Date
+) => {
+  try {
+    const cacheKey = EXPENSES_BY_CATEGORY_DATE_CACHE_KEY(
+      companyId,
+      categoryId,
+      startDate,
+      endDate
+    );
+
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData && cachedData !== "[]") {
+      return JSON.parse(cachedData);
+    }
+
+    const category = await prisma.expenseCategory.findFirst({
+      where: {
+        id: categoryId,
+        companyId,
+        deletedAt: null,
+      },
+    });
+    console.log("category", category);
+
+    if (!category) {
+      throw new Error("Category not found for this company");
+    }
+
+    const expenses = await prisma.expense.findMany({
+      where: {
+        categoryId,
+        companyId,
+        deletedAt: null,
+        dateProduced: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      orderBy: {
+        dateProduced: "desc",
+      },
+    });
+    console.log("expenses", expenses);
+
+    await cache.set(cacheKey, JSON.stringify(expenses), 3600);
+
+    return expenses;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       throw new Error(`Database error: ${error.message}`);

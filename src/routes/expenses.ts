@@ -9,5 +9,6 @@ router.delete("/expenses/:expenseId", authMiddleware(), expenseController.softDe
 router.put("/expenses/:expenseId", authMiddleware(), expenseController.updateExpense);
 router.get("/expenses", authMiddleware(), expenseController.getExpenses);
 router.get("/expenses/top-categories", authMiddleware(), expenseController.getTopExpenseCategories);
+router.get(  "/expenses/:categoryId", authMiddleware(), expenseController.getExpensesByCategoryAndDateRange);
 
 export const expenseRouter = router;
