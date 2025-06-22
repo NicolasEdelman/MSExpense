@@ -22,6 +22,7 @@ router.delete(
 
 router.get(
   "/expense-categories",
+  authMiddleware(),
   categoryController.getCategories
 );  
 

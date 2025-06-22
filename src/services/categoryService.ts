@@ -135,7 +135,7 @@ export const softDeleteCategory = async (
   }
 };
 
-export const getCategoriesByCompany = async (companyId: string) => {
+export const getCategoriesByCompany = async (companyId?: string) => {
   try {
     const result = await prisma.expenseCategory.findMany({
       where: {
