@@ -175,6 +175,8 @@ export const getExpenses = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
+  console.log("La request es: ", req);
+  console.log("La response es: ", res);
   try {
     const companyId = (req.query.companyId as string) || req.user?.companyId;
     const userRole = req.user?.role;
@@ -186,6 +188,13 @@ export const getExpenses = async (
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
 
+    console.log("La companyId es: ", companyId);
+    console.log("El userRole es: ", userRole);
+    console.log("La page es: ", page);
+    console.log("La pageSize es: ", pageSize);
+    console.log("La categoryId es: ", categoryId);
+    console.log("La startDate es: ", startDate);
+    console.log("La endDate es: ", endDate);
     if (!companyId) {
       res.status(400).json({ error: "Company ID is required" });
       return;
