@@ -169,8 +169,7 @@ export const getCategories = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
-  console.log("La request es: ", req);
-  console.log("La response es: ", res);
+  console.log("La request es: ", req.query);
   try {
     const companyId = (req.query.companyId as string) || req.user?.companyId;
     if (!companyId) {
