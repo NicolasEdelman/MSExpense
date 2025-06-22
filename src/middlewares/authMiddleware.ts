@@ -14,38 +14,27 @@ export const authMiddleware = () => {
     res: Response,
     next: NextFunction
   ): void => {
-    const authHeader = req.headers.authorization;
-    const companyId = req.headers['x-company-id'] as string;
-    const userRole = req.headers['x-user-role'] as string;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
+    const companyId = req.headers["x-company-id"] as string;
+    const userRole = req.headers["x-user-role"] as string;
+    const userId = req.headers["x-user-id"] as string;
 
     if (!companyId) {
       res.status(400).json({ error: "x-company-id header is required" });
       return;
     }
-
-    const token = authHeader.split(" ")[1];
-
-    try {
-      // Por ahora, vamos a simular la verificación del token
-      // y usar el companyId del header
-      const decoded = {
-        userId: "128e6538-7d10-4ca5-a79e-87e76174c677", // Esto debería venir del token JWT
-      };
-
-      req.user = {
-        userId: decoded.userId,
-        companyId: companyId,
-        role: userRole,
-      };
-
-      next();
-    } catch (error) {
-      res.status(401).json({ error: "Invalid or expired token" });
+    if (!userId) {
+      res.status(400).json({ error: "x-user-id header is required" });
+      return;
     }
+    if (!userRole) {
+      res.status(400).json({ error: "x-user-role header is required" });
+      return;
+    }
+    req.user = {
+      userId: userId,
+      companyId: companyId,
+      role: userRole,
+    };
+    next();
   };
 };
