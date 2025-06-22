@@ -34,7 +34,7 @@ export const authMiddleware = () => {
       // Por ahora, vamos a simular la verificación del token
       // y usar el companyId del header
       const decoded = {
-        userId: "temp-user-id", // Esto debería venir del token JWT
+        userId: "128e6538-7d10-4ca5-a79e-87e76174c677", // Esto debería venir del token JWT
       };
 
       req.user = {

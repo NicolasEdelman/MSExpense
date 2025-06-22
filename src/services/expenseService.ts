@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import { ValidationError } from "../lib/errors/validation-error";
 import { CreateExpense } from "../schemas/expenseSchema";
 import { Prisma } from "@prisma/client";
+import { notificationService } from "./notificationService";
 
 const TOP_EXPENSE_CATEGORIES_CACHE_KEY = (companyId: string) =>
   `top_expense_categories:${companyId}`;
@@ -45,6 +46,9 @@ export const createExpense = async (expense: CreateExpense) => {
 
     const newExpense = await prisma.expense.create({
       data: validatedData,
+      include: {
+        category: true,
+      },
     });
 
     const cacheKey = TOP_EXPENSE_CATEGORIES_CACHE_KEY(validatedData.companyId);
@@ -53,6 +57,9 @@ export const createExpense = async (expense: CreateExpense) => {
     const pattern = `expenses_by_category_date:${validatedData.companyId}:${validatedData.categoryId}:*`;
     const keys = await cache.keys(pattern);
     await Promise.all(keys.map((key: string) => cache.del(key)));
+
+    // Send notification using centralized method
+    await notificationService.sendExpenseNotificationWithUserEmail('CREATE', newExpense);
 
     return newExpense;
   } catch (error) {
@@ -73,6 +80,9 @@ export const softDeleteExpense = async (
         id: expenseId,
         companyId: companyId,
       },
+      include: {
+        category: true,
+      },
     });
     if (expense?.deletedAt) {
       throw new Error("Expense already deleted");
@@ -84,12 +94,20 @@ export const softDeleteExpense = async (
         deletedAt: new Date(),
         updatedAt: new Date(),
       } as Prisma.ExpenseUpdateInput,
+      include: {
+        category: true,
+      },
     });
 
     if (expense?.categoryId) {
       const pattern = `expenses_by_category_date:${companyId}:${expense.categoryId}:*`;
       const keys = await cache.keys(pattern);
       await Promise.all(keys.map((key: string) => cache.del(key)));
+    }
+
+    // Send notification using centralized method
+    if (expense) {
+      await notificationService.sendExpenseNotificationWithUserEmail('DELETE', deletedExpense);
     }
 
     return deletedExpense;
@@ -114,6 +132,9 @@ export const updateExpense = async (expenseId: string, data: UpdateExpense) => {
 
     const expense = await prisma.expense.findFirst({
       where: { id: expenseId },
+      include: {
+        category: true,
+      },
     });
 
     if (!expense) {
@@ -133,9 +154,39 @@ export const updateExpense = async (expenseId: string, data: UpdateExpense) => {
       }
     }
 
+    // Track changes for notification
+    const changes: { field: string; oldValue: any; newValue: any }[] = [];
+    
+    if (validatedData.amount !== undefined && validatedData.amount !== expense.amount) {
+      changes.push({
+        field: 'amount',
+        oldValue: expense.amount,
+        newValue: validatedData.amount
+      });
+    }
+    
+    if (validatedData.dateProduced && new Date(validatedData.dateProduced).getTime() !== new Date(expense.dateProduced).getTime()) {
+      changes.push({
+        field: 'dateProduced',
+        oldValue: expense.dateProduced,
+        newValue: validatedData.dateProduced
+      });
+    }
+    
+    if (validatedData.categoryId && validatedData.categoryId !== expense.categoryId) {
+      changes.push({
+        field: 'categoryId',
+        oldValue: expense.categoryId,
+        newValue: validatedData.categoryId
+      });
+    }
+
     const updatedExpense = await prisma.expense.update({
       where: { id_companyId: { id: expenseId, companyId: expense.companyId } },
       data: validatedData,
+      include: {
+        category: true,
+      },
     });
 
     const patterns = [
@@ -155,6 +206,11 @@ export const updateExpense = async (expenseId: string, data: UpdateExpense) => {
       patterns.map((pattern) => cache.keys(pattern))
     );
     await Promise.all(keys.flat().map((key: string) => cache.del(key)));
+
+    // Send notification if there are changes using centralized method
+    if (changes.length > 0) {
+      await notificationService.sendExpenseNotificationWithUserEmail('UPDATE', updatedExpense, changes);
+    }
 
     return updatedExpense;
   } catch (error) {
