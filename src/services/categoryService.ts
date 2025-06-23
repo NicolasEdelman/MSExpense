@@ -15,6 +15,7 @@ const companiesIds = [
   "a0650f50-bcaa-41f6-95db-e68301d4ccd5",
   "85e60189-7543-4350-b594-a0b799edc2c4",
   "123e4567-e89b-12d3-a456-426614174000",
+  "97bc4deb-d93d-4e86-9d35-8018bba6056a",
 ];
 
 export const validateCompanyId = async (
